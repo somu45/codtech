@@ -1,0 +1,125 @@
+/////////////////////Verilog Test Bench Code for basic alu operations////////////////////////////
+// tb_basic_alu.v
+// Test bench for basic_alu module
+// Designed for EDA Playground with waveform dumping
+
+module tb_basic_alu;
+
+    // Declare signals that will connect to the ALU's ports
+    reg  [7:0] A_tb;         // Test bench input for A
+    reg  [7:0] B_tb;         // Test bench input for B
+    reg  [2:0] OpCode_tb;    // Test bench input for OpCode
+    wire [7:0] Result_tb;    // Test bench output for Result
+    wire CarryOut_tb;        // Test bench output for CarryOut
+    wire Zero_tb;            // Test bench output for Zero
+
+    // Instantiate the Design Under Test (DUT) - our basic_alu
+    basic_alu dut (
+        .A        (A_tb),
+        .B        (B_tb),
+        .OpCode   (OpCode_tb),
+        .Result   (Result_tb),
+        .CarryOut (CarryOut_tb),
+        .Zero     (Zero_tb)
+    );
+
+    // Initial block to apply stimulus and configure waveform dumping
+    initial begin
+        // --- Waveform Dumping Configuration (IMPORTANT for EDA Playground EPWave) ---
+        $dumpfile("basic_alu.vcd");    // Specify the VCD file name
+        $dumpvars(0, tb_basic_alu); // Dump all signals within tb_basic_alu hierarchy
+                                    // This includes signals in 'dut' (basic_alu) as well.
+        // --------------------------------------------------------------------------
+
+        $display("------------------------------------------------------------------");
+        $display("Starting Basic ALU Test Bench (for EDA Playground)");
+        $display("Time\tA\tB\tOpCode\tResult\tCarry\tZero\tOperation");
+        $display("------------------------------------------------------------------");
+
+        // Test Case 1: ADD (5 + 3 = 8)
+        A_tb = 8'd5;
+        B_tb = 8'd3;
+        OpCode_tb = 3'b000; // ADD
+        #10; // Wait 10 time units for combinational logic to settle
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tADD (5 + 3 = 8)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'd8 || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b0) $display("Test Failed for ADD (5+3)!");
+
+        // Test Case 2: ADD (250 + 10 = 260, but 8-bit overflow)
+        A_tb = 8'd250; // 0xFA
+        B_tb = 8'd10;  // 0x0A
+        OpCode_tb = 3'b000; // ADD
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tADD (250 + 10 = 260 -> 4, Carry)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'd4 || CarryOut_tb !== 1'b1 || Zero_tb !== 1'b0) $display("Test Failed for ADD (250+10)!");
+
+        // Test Case 3: SUB (10 - 3 = 7)
+        A_tb = 8'd10;
+        B_tb = 8'd3;
+        OpCode_tb = 3'b001; // SUB
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tSUB (10 - 3 = 7)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'd7 || CarryOut_tb !== 1'b1 || Zero_tb !== 1'b0) $display("Test Failed for SUB (10-3)!"); // CarryOut=1 for no borrow
+
+        // Test Case 4: SUB (3 - 10 = -7, 8-bit underflow)
+        A_tb = 8'd3;
+        B_tb = 8'd10;
+        OpCode_tb = 3'b001; // SUB
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tSUB (3 - 10 = -7 -> 0xF9, Borrow)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        // -7 in 8-bit two's complement is 11111001 (0xF9)
+        if (Result_tb !== 8'hF9 || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b0) $display("Test Failed for SUB (3-10)!"); // CarryOut=0 for borrow
+
+        // Test Case 5: AND (0xF0 & 0x0F = 0x00)
+        A_tb = 8'hF0; // 11110000
+        B_tb = 8'h0F; // 00001111
+        OpCode_tb = 3'b010; // AND
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tAND (0xF0 & 0x0F = 0x00)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'h00 || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b1) $display("Test Failed for AND (0xF0 & 0x0F)!");
+
+        // Test Case 6: OR (0xF0 | 0x0F = 0xFF)
+        A_tb = 8'hF0;
+        B_tb = 8'h0F;
+        OpCode_tb = 3'b011; // OR
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tOR (0xF0 | 0x0F = 0xFF)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'hFF || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b0) $display("Test Failed for OR (0xF0 | 0x0F)!");
+
+        // Test Case 7: NOT (0xAA = 0x55)
+        A_tb = 8'hAA; // 10101010
+        B_tb = 8'h00; // B is ignored for NOT
+        OpCode_tb = 3'b100; // NOT
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tNOT (~0xAA = 0x55)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'h55 || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b0) $display("Test Failed for NOT (~0xAA)!");
+
+        // Test Case 8: NOT (0x00 = 0xFF), check Zero flag
+        A_tb = 8'h00;
+        B_tb = 8'h00;
+        OpCode_tb = 3'b100; // NOT
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tNOT (~0x00 = 0xFF)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'hFF || CarryOut_tb !== 1'b0 || Zero_tb !== 1'b0) $display("Test Failed for NOT (~0x00)!");
+
+        // Test Case 9: ADD resulting in Zero
+        A_tb = 8'd255;
+        B_tb = 8'd1;
+        OpCode_tb = 3'b000; // ADD
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tADD (255 + 1 = 0, Carry, Zero)", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        if (Result_tb !== 8'h00 || CarryOut_tb !== 1'b1 || Zero_tb !== 1'b1) $display("Test Failed for ADD (255+1)!");
+
+        // Test Case 10: Unassigned OpCode (should result in 'x' or default)
+        A_tb = 8'h12;
+        B_tb = 8'h34;
+        OpCode_tb = 3'b111; // Unassigned
+        #10;
+        $display("%0t\t%h\t%h\t%b\t%h\t%b\t%b\tUnassigned OpCode", $time, A_tb, B_tb, OpCode_tb, Result_tb, CarryOut_tb, Zero_tb);
+        // For unassigned, we expect 'x' values, so checking specific values isn't ideal here in Verilog 'x' propagation.
+
+        $display("------------------------------------------------------------------");
+        $display("Basic ALU Test Bench Finished.");
+        $finish; // End simulation
+    end
+
+endmodule
