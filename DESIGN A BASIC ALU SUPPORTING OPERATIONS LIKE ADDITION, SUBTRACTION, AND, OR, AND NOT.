@@ -1,1 +1,62 @@
+/////////////////////verilog design code ///////////
+// basic_alu.v
+// Basic Arithmetic Logic Unit (ALU)
+// Supports ADD, SUB, AND, OR, NOT operations
+// Designed for 8-bit operands
 
+module basic_alu (
+    input  [7:0] A,          // 8-bit input operand A
+    input  [7:0] B,          // 8-bit input operand B
+    input  [2:0] OpCode,     // 3-bit operation code
+    output reg [7:0] Result,   // 8-bit output result
+    output reg CarryOut,     // Carry out for addition/subtraction
+    output reg Zero          // Zero flag (1 if Result is 0, 0 otherwise)
+);
+
+    // CHANGE: sum_sub_result must be a 'reg' because it's assigned inside an always block
+    reg [8:0] sum_sub_result; // Changed from wire to reg
+
+    always @(*) begin
+        // Default values to prevent latches and ensure defined outputs
+        Result = 8'b0;
+        CarryOut = 1'b0;
+        Zero = 1'b0;
+
+        case (OpCode)
+            3'b000: begin // ADD: Result = A + B
+                sum_sub_result = {1'b0, A} + {1'b0, B}; // Perform addition with 9 bits to capture carry
+                Result = sum_sub_result[7:0];            // Assign lower 8 bits to Result
+                CarryOut = sum_sub_result[8];            // Assign MSB as CarryOut
+            end
+            3'b001: begin // SUB: Result = A - B (implemented as A + (~B + 1) using two's complement)
+                sum_sub_result = {1'b0, A} + {1'b0, ~B} + 1'b1; // Perform addition with 9 bits
+                Result = sum_sub_result[7:0];                   // Assign lower 8 bits to Result
+                // CarryOut for subtraction typically indicates no borrow (CarryOut = 1 if no borrow)
+                CarryOut = sum_sub_result[8];
+            end
+            3'b010: begin // AND: Result = A & B (Bitwise AND)
+                Result = A & B;
+            end
+            3'b011: begin // OR: Result = A | B (Bitwise OR)
+                Result = A | B;
+            end
+            3'b100: begin // NOT: Result = ~A (Bitwise NOT of A, B is ignored)
+                Result = ~A;
+            end
+            default: begin // For any unassigned OpCode, set Result to 'x' for unknown/undefined
+                Result = 8'hXX; // 'x' for unknown/undefined behavior
+                CarryOut = 1'bX;
+                Zero = 1'bX;
+            end
+        endcase
+
+        // Update Zero flag based on the computed Result
+        // This check is outside the case statement to apply to all valid operations.
+        if (Result == 8'b0) begin
+            Zero = 1'b1;
+        end else begin
+            Zero = 1'b0;
+        end
+    end
+
+endmodule
